@@ -22,10 +22,9 @@ type Todo = {
   completed: boolean;
 };
 
-const db: Todo[] = [
-  { id: 1, content: 'Learn React', completed: true },
-  { id: 2, content: 'Learn BETH stack', completed: false }
-];
+const db: Todo[] = [];
+
+let lastId = 1;
 
 const app = new Elysia()
   .use(html())
@@ -41,6 +40,25 @@ const app = new Elysia()
   )
   .post('/clicked', () => <div class="text-blue-600">Blood in my eyes dog and I can't see</div>)
   .get('/todos', () => <TodoList todos={db} />)
+  .post('/todos', ({ body }) => {
+    if (body.content.length === 0) {
+      throw new Error("Content can't be empty");
+    }
+
+    const newTodo = {
+      id: lastId++,
+      content: body.content,
+      completed: false,
+    };
+
+    db.push(newTodo);
+
+    return <TodoItem {...newTodo} />;
+  }, {
+    body: t.Object({
+      content: t.String()
+    }),
+  })
   .post('/todos/toggle/:id', ({ params }) => {
     const todo = db.find((todo) => params.id === todo.id);
 
@@ -49,18 +67,18 @@ const app = new Elysia()
       return <TodoItem {...todo} />
     }
   },
-  {
-    params: t.Object({
-      id: t.Numeric(),
+    {
+      params: t.Object({
+        id: t.Numeric(),
+      })
     })
-  })
-  .delete('/todos/:id', ({params}) => {
+  .delete('/todos/:id', ({ params }) => {
     const todo = db.find((todo) => params.id === todo.id);
 
     if (todo) {
       db.splice(db.indexOf(todo), 1)
     }
-  },{
+  }, {
     params: t.Object({
       id: t.Numeric(),
     })
@@ -79,11 +97,28 @@ function TodoItem({ id, content, completed }: Todo) {
 
 function TodoList({ todos }: { todos: Todo[] }) {
   return (
-    <ul>
-      {todos.map((todo) => (
-        <TodoItem {...todo} />
-      ))}
-    </ul>
+    <div>
+      <TodoForm />
+      <ul class="todo-list-wrapper">
+        {todos.map((todo) => (
+          <TodoItem {...todo} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TodoForm() {
+  return (
+    <form
+      class="flex flex-row space-x-3"
+      hx-post="/todos"
+      hx-target=".todo-list-wrapper"
+      hx-swap="beforeend"
+    >
+      <input type="text" name="content" class="border border-black" />
+      <button type="submit">Add</button>
+    </form>
   );
 }
 
